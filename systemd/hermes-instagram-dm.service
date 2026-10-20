@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes Instagram Direct Auto-Responder (Shopee Affiliate)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/brn/.hermes/ecommerce/instagram_dm_responder.py --interval 30
+WorkingDirectory=/home/brn/.hermes/ecommerce
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

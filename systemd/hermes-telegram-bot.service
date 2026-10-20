@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes Telegram Bot Interaction Responder (Shopee Affiliate)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/brn/.hermes/ecommerce/telegram_bot_responder.py
+WorkingDirectory=/home/brn/.hermes/ecommerce
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
