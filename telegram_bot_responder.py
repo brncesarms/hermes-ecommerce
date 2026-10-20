@@ -95,12 +95,13 @@ CFG = carregar_configuracoes()
 WHATSAPP_CHANNEL_URL = CFG.get("WHATSAPP_CHANNEL_URL", "https://whatsapp.com/channel/0029VbDwlyV1HspxTl5YNi2F")
 
 # Configuração de Administradores autorizados
-ADMIN_CHAT_IDS = {}
-if CFG.get("ADMIN_CHAT_ID"):
-    try:
-        ADMIN_CHAT_IDS.add(int(CFG["ADMIN_CHAT_ID"]))
-    except ValueError:
-        pass
+ADMIN_CHAT_IDS: set[int] = set()
+for _admin_key in ("ADMIN_CHAT_ID", "ADMIN_TELEGRAM_CHAT_ID"):
+    if CFG.get(_admin_key):
+        try:
+            ADMIN_CHAT_IDS.add(int(CFG[_admin_key]))
+        except ValueError:
+            pass
 
 def is_admin(chat_id: int) -> bool:
     """Verifica se o chat_id pertence ao administrador autorizado."""
