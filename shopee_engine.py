@@ -102,14 +102,21 @@ def notificar_alerta_erro_telegram(
     """
     admin_token = (
         CFG.get("ADMIN_TELEGRAM_BOT_TOKEN")
+        or CFG.get("TELEGRAM_BOT_TOKEN")
         or os.getenv("ADMIN_TELEGRAM_BOT_TOKEN")
+        or os.getenv("TELEGRAM_BOT_TOKEN")
         or ""
     )
     admin_chat_id = (
         CFG.get("ADMIN_TELEGRAM_CHAT_ID")
         or os.getenv("ADMIN_TELEGRAM_CHAT_ID")
+        or CFG.get("TELEGRAM_CHAT_ID")
         or ""
     )
+
+    if not admin_token or not admin_chat_id:
+        logger.warning("Credenciais de alerta admin do Telegram não configuradas.")
+        return False
 
     agora_str = time.strftime("%d/%m/%Y %H:%M:%S")
     tema_str = f"📦 <b>Tema:</b> <code>{tema.upper() if tema else 'Geral'}</code>\n" if tema else ""
