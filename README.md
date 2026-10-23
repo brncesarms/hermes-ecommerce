@@ -38,9 +38,17 @@ Motor autônomo 24/7 de curadoria de ofertas, geração de cards promocionais em
 
 ```text
 hermes-ecommerce/
+├── DESIGN.md                 # Design System tokens (Google Stitch spec) para cards 1080x1920
 ├── shopee_engine.py          # Motor central de busca Shopee, renderização e publicação
 ├── instagram_dm_responder.py # Worker autônomo de resposta a DMs ("QUERO")
 ├── telegram_bot_responder.py # Bot interativo com LLM local para Telegram
+├── feed_factory.py           # Geração e agendamento de posts para o Feed
+├── instagram_comments.py     # Monitoramento e respostas automáticas a comentários
+├── instagram_reels.py        # Publicação de vídeos no Instagram Reels
+├── reel_auto.py              # Pipeline autônomo de mineração e postagem de Reels
+├── reel_factory.py           # Fábrica de renderização de vídeo vertical
+├── llm_client.py             # Cliente unificado de inferência (OpenCode / Local LLM)
+├── manychat_bridge.py        # Ponte de automação ManyChat
 ├── credentials.env.example   # Template de variáveis de ambiente
 ├── requirements.txt          # Dependências Python
 ├── fonts/                    # Fontes Montserrat para renderização Pillow
@@ -59,7 +67,8 @@ hermes-ecommerce/
     ├── PRIVACY_POLICY.md     # Política de Privacidade (Meta App Review)
     ├── TERMS_OF_SERVICE.md   # Termos de Serviço
     ├── DATA_DELETION.md      # Instruções de Exclusão de Dados do Usuário
-    └── META_GRAPH_SETUP.md   # Guia de configuração no Meta Developers
+    ├── META_GRAPH_SETUP.md   # Guia de configuração no Meta Developers
+    └── FACEBOOK_PAGE_SETUP.md# Integração com Páginas do Facebook
 ```
 
 ---

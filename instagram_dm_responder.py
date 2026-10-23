@@ -376,6 +376,22 @@ def executar_ciclo_verificacao(dry_run: bool = False) -> int:
 
     return respostas_enviadas
 
+COMMENTS_INTERVAL = 180
+_comments_last_run = 0.0
+
+def executar_ciclo_comentarios(dry_run: bool = False) -> int:
+    """Executa o fluxo Comentario -> Direct no maximo a cada COMMENTS_INTERVAL segundos."""
+    global _comments_last_run
+    if time.time() - _comments_last_run < COMMENTS_INTERVAL:
+        return 0
+    _comments_last_run = time.time()
+    try:
+        import instagram_comments
+        return instagram_comments.processar_comentarios(dry_run=dry_run)
+    except Exception as e:
+        logger.error(f"Falha no ciclo de comentarios: {e}")
+        return 0
+
 def main():
     parser = argparse.ArgumentParser(description="Hermes Instagram Direct Auto-Responder")
     parser.add_argument("--once", action="store_true", help="Executa uma única verificação e sai")
@@ -388,12 +404,14 @@ def main():
 
     if args.once:
         enviadas = executar_ciclo_verificacao(dry_run=args.dry_run)
-        logger.info(f"Ciclo concluído. Mensagens respondidas: {enviadas}")
+        respostas_comentarios = executar_ciclo_comentarios(dry_run=args.dry_run)
+        logger.info(f"Ciclo concluído. Mensagens respondidas: {enviadas} | Comentarios: {respostas_comentarios}")
         return
 
     while True:
         try:
             executar_ciclo_verificacao(dry_run=args.dry_run)
+            executar_ciclo_comentarios(dry_run=args.dry_run)
         except Exception as e:
             logger.error(f"Erro no ciclo principal: {e}")
         time.sleep(args.interval)

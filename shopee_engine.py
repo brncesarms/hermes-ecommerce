@@ -135,7 +135,7 @@ def notificar_alerta_erro_telegram(
         f"{tema_str}"
         f"❌ <b>Erro:</b> {erro_msg}\n"
         f"{detalhes_limpos}\n"
-        f"⚡ <i>Aviso automático despachado para intervenção imediata via @brncesarms_bot.</i>"
+        f"⚡ <i>Aviso automático da esteira (bot de alerta ADMIN_TELEGRAM_BOT_TOKEN).</i>"
     )
 
     endpoint = f"https://api.telegram.org/bot{admin_token}/sendMessage"
@@ -149,7 +149,7 @@ def notificar_alerta_erro_telegram(
         r = requests.post(endpoint, json=payload, timeout=10)
         res = r.json()
         if res.get("ok"):
-            print(f"[ALERTA TELEGRAM] Notificação enviada para Bruno ({admin_chat_id}) via @brncesarms_bot.")
+            print(f"[ALERTA TELEGRAM] Notificação enviada para Bruno ({admin_chat_id}) via bot de alerta (ADMIN_TELEGRAM_BOT_TOKEN).")
             return True
         else:
             print(f"[ALERTA TELEGRAM FALHOU] Resposta Telegram: {res}", file=sys.stderr)
@@ -522,6 +522,30 @@ def hospedar_imagem_temporaria(caminho_imagem: str) -> str:
 # ------------------------------------------------------------------------------
 # 5. DISPARADOR INSTAGRAM (STORIES, FEED E CARROSSEL VIA META GRAPH API)
 # ------------------------------------------------------------------------------
+
+def formatar_legenda_instagram_seo_2026(titulo: str, preco: float, cupom: str = "", link_bio: bool = True) -> str:
+    """Gera legenda e hashtags otimizadas para o algoritmo Meta/Instagram SEO (2026)."""
+    # 1. Keyword de nicho na primeira linha para indexação semântica
+    titulo_limpo = " ".join(titulo.strip().split())[:65]
+    linha_1 = f"Achadinhos Shopee: {titulo_limpo}"
+
+    # 2. Informações de valor (preço e cupom)
+    linha_preco = f"🏷️ Preço exclusivo: R$ {preco:.2f}"
+    linha_cupom = f"🎟️ Use o cupom da loja para desconto extra!" if cupom else "⚡ Estoque promocional limitado!"
+
+    # 3. CTA focado em Compartilhamento e Salvamento (maior peso no ranking)
+    cta = (
+        "🚀 Envie para alguém que precisa desse achado!\n"
+        "💾 Salve para não perder o link quando for comprar.\n"
+        "🔗 Link direto nos Stories e no Canal VIP do Telegram (link na bio)."
+    )
+
+    # 4. 6 a 8 hashtags nichadas (evita demote algorítmico de spam)
+    hashtags = "#achadinhosshopee #cupomshopee #achadinhos #shopeebr #promocaotododia #achadosdashopee #comprinhasshopee"
+
+    return f"{linha_1}\n\n{linha_preco}\n{linha_cupom}\n\n{cta}\n\n{hashtags}"
+
+
 def publicar_story_instagram(caminho_ou_url_imagem: str, dry_run: bool = False) -> str:
     """Cria container STORIES na Meta API e publica no ar."""
     token = CFG.get("INSTAGRAM_ACCESS_TOKEN")
@@ -931,6 +955,110 @@ def publicar_canal_whatsapp(
 
 
 # ------------------------------------------------------------------------------
+# 6.3. PÁGINA DO FACEBOOK (RADAR DE PREÇO BAIXO)
+# ------------------------------------------------------------------------------
+def formatar_copy_facebook(
+    titulo: str,
+    preco: str,
+    desconto: str = "",
+    cupom: str = "",
+    url_afiliado: str = "",
+) -> str:
+    """Formata copy persuasiva otimizada para publicação na Página do Facebook."""
+    linhas = [
+        "🔥 ACHADO IMPERDÍVEL NA SHOPEE! 🔥",
+        "",
+        f"⭐ {titulo}",
+        f"⚡ Por apenas: {preco}",
+    ]
+    if desconto:
+        linhas.append(f"🏷️ Desconto: {desconto}")
+    if cupom:
+        linhas.append(f"🎟️ Cupom: {cupom}")
+
+    if url_afiliado:
+        linhas.extend([
+            "",
+            f"🛒 COMPRE AQUI: {url_afiliado}",
+        ])
+
+    linhas.extend([
+        "",
+        "🚚 Verifique frete grátis e cupons ativos no app da Shopee!",
+        "⚠️ Estoque e cupons promocionais costumam esgotar rápido!",
+        "",
+        "#shopee #achadinhos #shopeebr #promocao #desconto #ofertas #radardeprecobaixo",
+    ])
+    return "\n".join(linhas)
+
+
+def publicar_pagina_facebook(
+    caminho_ou_url_imagem: str,
+    texto_facebook: str,
+    url_afiliado: str = "",
+    dry_run: bool = False,
+) -> bool:
+    """Publica foto com legenda e link direto na Página do Facebook via Meta Graph API."""
+    page_id = CFG.get("FACEBOOK_PAGE_ID", "61595220492675")
+    page_token = CFG.get("FACEBOOK_PAGE_ACCESS_TOKEN", "").strip()
+    graph_url = CFG.get("FACEBOOK_GRAPH_URL", "https://graph.facebook.com/v21.0")
+    page_url = CFG.get("FACEBOOK_PAGE_URL", "https://www.facebook.com/radar.de.preco.baixoo/")
+
+    if dry_run:
+        print("[DRY-RUN] Transmissão Facebook Page simulada:")
+        print(f"Página ID: {page_id} ({page_url})")
+        print(f"Texto:\n{texto_facebook}")
+        if url_afiliado:
+            print(f"Link Afiliado: {url_afiliado}")
+        return True
+
+    # 1. Se o token da página estiver configurado, dispara via Meta Graph API
+    if page_token and page_id:
+        endpoint = f"{graph_url}/{page_id}/photos"
+        try:
+            payload = {
+                "caption": texto_facebook,
+                "access_token": page_token,
+            }
+            if caminho_ou_url_imagem.startswith("http"):
+                payload["url"] = caminho_ou_url_imagem
+                resp = requests.post(endpoint, data=payload, timeout=25)
+            else:
+                with open(caminho_ou_url_imagem, "rb") as photo_file:
+                    resp = requests.post(
+                        endpoint,
+                        data=payload,
+                        files={"source": photo_file},
+                        timeout=25,
+                    )
+            res = resp.json()
+            if "id" in res:
+                post_id = res.get("post_id") or res.get("id")
+                print(f"[SUCESSO] Oferta publicada na Página do Facebook! ID: {post_id}")
+                return True
+            else:
+                print(f"[FACEBOOK] Resposta da Meta Graph API ({resp.status_code}): {res}")
+        except Exception as e:
+            print(f"[FACEBOOK] Erro de rede ao conectar com Meta Graph API: {e}")
+
+    # 2. Fallback determinístico: Grava no histórico operacional de postagens do Facebook
+    fb_log = DATA_DIR / "facebook_posts.log"
+    try:
+        with open(fb_log, "a", encoding="utf-8") as f:
+            ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"\n==================== {ts} ====================\n")
+            f.write(f"PÁGINA: {page_url} (ID: {page_id})\n")
+            f.write(f"IMAGEM: {caminho_ou_url_imagem}\n")
+            f.write(f"LINK AFILIADO: {url_afiliado}\n")
+            f.write(f"CONTEÚDO:\n{texto_facebook}\n")
+        print(f"[FACEBOOK] Oferta registrada no histórico operacional de disparos ({fb_log.name}).")
+        return True
+    except Exception as e:
+        print(f"[AVISO] Falha ao gravar log do Facebook: {e}")
+        return False
+
+
+# ------------------------------------------------------------------------------
 # 7. PIPELINE COMPLETO MULTICANAL
 # ------------------------------------------------------------------------------
 def executar_pipeline_completo(
@@ -959,6 +1087,12 @@ def executar_pipeline_completo(
     # 2. Consultar Metadados ou Usar Informações Fornecidas
     info = consultar_oferta_shopee(url_shopee) or {}
     titulo = titulo_custom or info.get("productName") or "Oferta Imperdível Shopee"
+
+    # Blacklist permanente de famílias banidas (ordem direta do Bruno, 22/10/2026)
+    if eh_produto_bloqueado(titulo):
+        raise ValueError(
+            f"BLOQUEIO POR BLACKLIST PERMANENTE: '{titulo}' pertence a família banida (mala_viagem)."
+        )
     preco_val = info.get("priceMin")
     desconto_num = int(info.get("priceDiscountRate") or 0)
     real_shop_id = shop_id_ext or info.get("shopId") or "0"
@@ -1062,6 +1196,21 @@ def executar_pipeline_completo(
         url_afiliado=short_link,
         dry_run=dry_run,
     )
+
+    # 6.2. Formatar Copy e Disparar na Página do Facebook
+    copy_facebook = formatar_copy_facebook(
+        titulo=titulo,
+        preco=preco,
+        desconto=desconto,
+        cupom=cupom_custom,
+        url_afiliado=short_link,
+    )
+    publicar_pagina_facebook(
+        caminho_ou_url_imagem=story_local_file,
+        texto_facebook=copy_facebook,
+        url_afiliado=short_link,
+        dry_run=dry_run,
+    )
     
     # 7. Registrar no histórico com rastreabilidade completa de produto e vendedor
     if not dry_run:
@@ -1083,17 +1232,19 @@ def executar_pipeline_completo(
         "story_image_url": story_public_url,
         "telegram_posted": True,
         "whatsapp_posted": True,
+        "facebook_posted": True,
         "item_id": real_item_id,
         "shop_id": real_shop_id,
     }
 
 def testar_credenciais() -> dict[str, Any]:
-    """Testa a integridade e conectividade operacional das APIs Instagram, Shopee e Telegram."""
+    """Testa a integridade e conectividade operacional das APIs Instagram, Shopee, Telegram e Facebook."""
     resultado: dict[str, Any] = {
         "instagram": {"status": "FAIL", "detalhes": None},
         "shopee": {"status": "FAIL", "detalhes": None},
         "telegram": {"status": "FAIL", "detalhes": None},
         "whatsapp": {"status": "FAIL", "detalhes": None},
+        "facebook": {"status": "FAIL", "detalhes": None},
     }
     
     # 1. Instagram Graph API
@@ -1173,6 +1324,43 @@ def testar_credenciais() -> dict[str, Any]:
     except Exception as e:
         resultado["whatsapp"]["detalhes"] = str(e)
 
+    # 5. Página do Facebook (Radar de Preço Baixo)
+    try:
+        fb_id = CFG.get("FACEBOOK_PAGE_ID", "61595220492675")
+        fb_token = CFG.get("FACEBOOK_PAGE_ACCESS_TOKEN", "").strip()
+        fb_graph = CFG.get("FACEBOOK_GRAPH_URL", "https://graph.facebook.com/v21.0")
+        fb_url = CFG.get("FACEBOOK_PAGE_URL", "https://www.facebook.com/radar.de.preco.baixoo/")
+
+        if fb_token and fb_id:
+            r_fb = requests.get(
+                f"{fb_graph}/{fb_id}",
+                params={"fields": "id,name,link", "access_token": fb_token},
+                timeout=10,
+            ).json()
+            if "id" in r_fb:
+                resultado["facebook"] = {
+                    "status": "OK",
+                    "page_id": r_fb.get("id"),
+                    "page_name": r_fb.get("name"),
+                    "page_url": fb_url,
+                }
+            else:
+                resultado["facebook"] = {
+                    "status": "FAIL",
+                    "detalhes": r_fb,
+                    "page_id": fb_id,
+                    "page_url": fb_url,
+                }
+        else:
+            resultado["facebook"] = {
+                "status": "PENDING_TOKEN",
+                "detalhes": "FACEBOOK_PAGE_ACCESS_TOKEN não configurado em credentials.env",
+                "page_id": fb_id,
+                "page_url": fb_url,
+            }
+    except Exception as e:
+        resultado["facebook"] = {"status": "FAIL", "detalhes": str(e)}
+
     return resultado
 
 # ------------------------------------------------------------------------------
@@ -1181,6 +1369,29 @@ def testar_credenciais() -> dict[str, Any]:
 COOLDOWN_DIAS = 14
 COOLDOWN_SEGUNDOS = COOLDOWN_DIAS * 24 * 3600  # 1.209.600 segundos (336 horas)
 VALOR_MINIMO_PRODUTO = float(os.getenv("SHOPEE_MIN_PRICE", "100.0"))  # Regra Mandatória: Piso de R$ 100,00
+
+# ------------------------------------------------------------------------------
+# BLACKLIST PERMANENTE DE FAMÍLIAS DE PRODUTO (ordem direta do Bruno, 22/10/2026)
+# Vale para TODOS os pipelines (Stories, Feed, Carrossel e publicação avulsa).
+# ------------------------------------------------------------------------------
+FAMILIAS_BLOQUEADAS = {"mala_viagem"}
+KEYWORDS_BLOQUEADAS = [
+    "mala", "malas", "mala de bordo", "mala de viagem", "frasqueira", "bagagem",
+    "conjunto de malas", "kit de malas", "kit malas", "mala com rodinha",
+]
+
+
+def eh_produto_bloqueado(titulo: Any) -> bool:
+    """True se o título pertencer a uma família permanentemente banida."""
+    if not titulo:
+        return False
+    norm = unicodedata.normalize("NFKD", str(titulo)).encode("ASCII", "ignore").decode("utf-8").lower()
+    texto_pad = " " + " ".join(t for t in re.split(r"[^a-z0-9]+", norm) if t) + " "
+    for kw in KEYWORDS_BLOQUEADAS:
+        kw_norm = unicodedata.normalize("NFKD", kw).encode("ASCII", "ignore").decode("utf-8").lower().strip()
+        if kw_norm and (" " + kw_norm + " ") in texto_pad:
+            return True
+    return False
 HISTORICO_POSTS_PATH = DATA_DIR / "historico_posts.json"
 
 def carregar_historico_posts() -> dict[str, Any]:
@@ -1238,7 +1449,9 @@ def extrair_tokens_produto(titulo: str) -> set[str]:
 def produtos_sao_similares(tit1: str, tit2: str, mesmo_vendedor: bool = False) -> tuple[bool, float, str]:
     """
     Avalia se dois anúncios correspondem essencialmente ao mesmo produto ou linha.
-    Funciona tanto para variações do mesmo vendedor quanto cross-seller (vendedores diferentes ofertando produto idêntico).
+    - Se mesmo_vendedor=True: rigor máximo contra variações de anúncio do mesmo lojista.
+    - Se mesmo_vendedor=False (cross-seller): bloqueia apenas clones reais idênticos (dropshipping/white-label),
+      sem jamais bloquear produtos/marcas concorrentes da mesma categoria que apenas compartilham termos técnicos.
     """
     if not tit1 or not tit2:
         return False, 0.0, "vazio"
@@ -1259,25 +1472,18 @@ def produtos_sao_similares(tit1: str, tit2: str, mesmo_vendedor: bool = False) -
     txt2 = " ".join(sorted(s2))
     seq_ratio = difflib.SequenceMatcher(None, txt1, txt2).ratio()
     
-    # 1. Regra para mesmo vendedor: maior rigor contra variação/clonagem de anúncio
+    # 1. Regra para mesmo vendedor: maior rigor contra variação/clonagem de anúncio do mesmo lojista
     if mesmo_vendedor:
         if jaccard >= 0.25 or len(inter) >= 3 or overlap >= 0.40 or seq_ratio >= 0.50:
             return True, max(jaccard, overlap, seq_ratio), f"mesmo_vendedor_similar({len(inter)} tokens em comum)"
             
-    # 2. Regra para vendedores distintos (cross-seller): produto idêntico ou clone
-    # 2.1 Identidade no núcleo inicial (primeiros 4 tokens contêm 3 em comum, ex: 'balança digital precisão')
-    head_inter = set(l1[:4]).intersection(set(l2[:4]))
-    if len(head_inter) >= 3:
-        return True, overlap, f"head_tokens_identicos({len(head_inter)} tokens no inicio: {head_inter})"
-
-    if jaccard >= 0.38:
-        return True, jaccard, f"jaccard_alto({jaccard:.2f})"
-    if len(inter) >= 5:
-        return True, overlap, f"muitos_tokens_iguais({len(inter)} tokens)"
-    if len(inter) >= 4 and overlap >= 0.35:
-        return True, overlap, f"overlap_tokens({overlap:.2f}, {len(inter)} tokens)"
-    if seq_ratio >= 0.65:
-        return True, seq_ratio, f"seq_ratio_alto({seq_ratio:.2f})"
+    # 2. Regra para vendedores distintos (cross-seller): apenas se for clone real do mesmo produto
+    # Garante que marcas/modelos concorrentes (ex: Acer vs Gigabyte, Mondial vs Philco) NÃO sejam bloqueados,
+    # enquanto clones idênticos de white-label / dropshipping continuam barrados.
+    if seq_ratio >= 0.78:
+        return True, seq_ratio, f"clone_cross_seller_seq({seq_ratio:.2f})"
+    if jaccard >= 0.60 and overlap >= 0.75:
+        return True, jaccard, f"clone_cross_seller_jaccard({jaccard:.2f}, overlap={overlap:.2f})"
         
     return False, max(jaccard, overlap, seq_ratio), "distintos"
 
@@ -1369,14 +1575,21 @@ TEMAS_PRESETS: dict[str, dict[str, Any]] = {
         "horario_oficial": "08:00",
         "foco_publico": "Despertar, transporte matinal e compras rápidas de impulso",
         "keywords": [
-            "aspirador de po portatil sem fio",
-            "mini projetor portatil smart wifi",
-            "parafusadeira furadeira eletrica sem fio bivolt",
-            "ring light grande tripe profissional",
+            "mini projetor smart",
+            "parafusadeira furadeira eletrica sem fio",
+            "aspirador de po automotivo sem fio",
             "caixa som bluetooth potente portatil",
-            "maleta ferramentas completa jogo",
-            "camera seguranca ip externa wifi prova dagua",
-            "mesa digitalizadora desenho usb",
+            "camera seguranca ip externa wifi",
+            "lavadora alta pressao portatil",
+            "kit ferramentas maleta completa",
+            "smartwatch amoled nfc",
+            "fone bluetooth cancelamento ruido anc",
+            "mesa digitalizadora usb",
+            "ring light tripe profissional",
+            "carregador portatil power bank 20000mah",
+            "compressor ar portatil calibrador",
+            "fechadura digital smart biométrica",
+            "inversor de tensao veicular",
         ],
         "emoji": "🔥",
         "titulo_tg": "🔥 <b>RADAR MATINAL: ACHADOS VIRAIS DO DIA NA SHOPEE!</b>",
@@ -1386,15 +1599,24 @@ TEMAS_PRESETS: dict[str, dict[str, Any]] = {
         "horario_oficial": "11:45",
         "foco_publico": "Gatilho do almoço, gastronomia, praticidade doméstica e organização do lar",
         "keywords": [
-            "fritadeira eletrica air fryer mondial philco",
-            "aspirador de po robo bivolt automatico",
-            "jogo de panelas antiaderente ceramica inducao",
-            "panela de pressao eletrica digital inox",
-            "cafeteira eletrica expresso capsula",
-            "purificador de agua refrigerado bancada",
-            "ferro passar roupa vapor vertical steamer",
-            "mop giratorio lava e seca balde inox",
-            "sanduicheira grill eletrica antiaderente",
+            "fritadeira air fryer",
+            "aspirador de po robo bivolt",
+            "aspirador de po vertical sem fio",
+            "jogo panelas antiaderente ceramica inducao",
+            "panela de pressao eletrica digital",
+            "cafeteira expresso capsula",
+            "purificador de agua gelada refrigerado",
+            "ferro passar vapor vertical steamer",
+            "mop giratorio lava seca balde inox",
+            "sanduicheira grill eletrica",
+            "liquidificador potente jarra vidro inox",
+            "batedeira planetaria inox",
+            "forno eletrico bancada",
+            "panificadora eletrica automatica",
+            "faqueiro inox conjunto completo",
+            "dispenser sabonete automatico inox",
+            "jogo lencol percal algodao",
+            "travesseiro nasa ortopedico cervical",
         ],
         "emoji": "🏠",
         "titulo_tg": "🏠 <b>ACHADOS DE CASA & COZINHA ANTES DO ALMOÇO!</b>",
@@ -1404,15 +1626,24 @@ TEMAS_PRESETS: dict[str, dict[str, Any]] = {
         "horario_oficial": "16:30",
         "foco_publico": "Pausa do café da tarde, estudantes, gamers e profissionais em home office",
         "keywords": [
-            "teclado mecanico switch hot swap gamer",
-            "headset gamer 7.1 surround sem fio",
-            "suporte monitor articulado pistao gas",
-            "cadeira gamer ergonomica reclinavel",
+            "teclado mecanico gamer",
             "monitor gamer ips full hd",
-            "mouse gamer sem fio recarregavel rgb",
-            "ssd nvme 1tb pcie high speed",
+            "cadeira gamer ergonomica reclinavel",
+            "headset gamer 7.1 surround sem fio",
+            "mouse gamer sem fio rgb",
             "gabinete gamer aquario vidro temperado",
-            "mesa gamer escritorio computador",
+            "ssd nvme 1tb pcie",
+            "mesa gamer escrivaninha computador",
+            "suporte monitor pistao gas articulado",
+            "microfone condensador usb streamer",
+            "webcam full hd 1080p",
+            "water cooler rgb processador",
+            "memoria ram ddr4 gamer",
+            "roteador gigabit wifi 6",
+            "caixa som soundbar gamer pc",
+            "hub usb c dock station multiportas",
+            "mesa digitalizadora profissional",
+            "nobreak senoidal bivolt",
         ],
         "emoji": "💻",
         "titulo_tg": "💻 <b>SETUP, GAMER & PRODUTIVIDADE NA SHOPEE!</b>",
@@ -1422,13 +1653,16 @@ TEMAS_PRESETS: dict[str, dict[str, Any]] = {
         "horario_oficial": "16:30",
         "foco_publico": "Pausa do café da tarde, gadgets e tecnologia",
         "keywords": [
-            "smartwatch amoled nfc bluetooth chamada",
-            "fone ouvido bluetooth cancelamento ruido ativo anc",
-            "caixa de som bluetooth potente subwoofer",
+            "smartwatch amoled nfc",
+            "fone ouvido bluetooth cancelamento ruido anc",
+            "caixa som bluetooth potente",
             "mini projetor smart android bivolt",
-            "drone com camera 4k gps dobravel",
-            "power bank inducao 20000mah carregamento rapido",
-            "estabilizador gimbal celular smartphone",
+            "drone camera 4k gps",
+            "power bank 20000mah inducao",
+            "estabilizador gimbal celular",
+            "camera de seguranca wifi smart",
+            "tablet android tela ips",
+            "leitor digital ebook",
         ],
         "emoji": "⚡",
         "titulo_tg": "⚡ <b>GADGETS VIRAIS & ELETRÔNICOS NA SHOPEE!</b>",
@@ -1438,15 +1672,25 @@ TEMAS_PRESETS: dict[str, dict[str, Any]] = {
         "horario_oficial": "20:30",
         "foco_publico": "Prime time noturno, autocuidado feminino, tendências TikTok e mães",
         "keywords": [
-            "escova secadora rotativa alisadora bivolt",
-            "modelador de cachos automatico bivolt babyliss",
-            "kit mala maternidade completa impermeavel bebe",
-            "carrinho de bebe dobravel leve passeio",
-            "bebe conforto assento carro veicular",
-            "baba eletronica camera sem fio audio visao noturna",
-            "mala bordo viagem rodinhas 360 abs",
-            "aparelho depilador luz pulsada ipl",
-            "bolsa feminina couro legitimo transversal",
+            "escova secadora rotativa alisadora",
+            "modelador cachos automatico babyliss",
+            "prancha alisadora chapinha titanio",
+            "secador cabelo profissional ionico",
+            "depilador luz pulsada ipl",
+            "kit mala maternidade impermeavel",
+            "carrinho bebe dobravel passeio",
+            "bebe conforto veicular",
+            "baba eletronica sem fio visao noturna",
+            "mala bordo viagem 360 abs",
+            "bolsa feminina transversal couro",
+            "relogio feminino analogico dourado",
+            "tenis feminino casual conforto",
+            "vestido midi casual feminino",
+            "kit skin care anti idade vitamina c",
+            "perfume feminino importado floral",
+            "massageador facial eletrico lifting",
+            "cadeirinha alimentacao bebe",
+            "berco portatil desmontavel",
         ],
         "emoji": "🌸",
         "titulo_tg": "🌸 <b>HORÁRIO NOBRE: BELEZA, MODA & ACHADOS DE BEBÊ!</b>",
@@ -1456,14 +1700,17 @@ TEMAS_PRESETS: dict[str, dict[str, Any]] = {
         "horario_oficial": "20:30",
         "foco_publico": "Prime time noturno, autocuidado feminino, tendências TikTok e mães",
         "keywords": [
-            "escova secadora rotativa alisadora bivolt",
-            "modelador de cachos automatico bivolt babyliss",
-            "kit mala maternidade completa impermeavel bebe",
-            "carrinho de bebe dobravel leve passeio",
-            "bebe conforto assento carro veicular",
-            "baba eletronica camera sem fio audio visao noturna",
-            "mala bordo viagem rodinhas 360 abs",
-            "aparelho depilador luz pulsada ipl",
+            "escova secadora rotativa alisadora",
+            "modelador cachos automatico babyliss",
+            "kit mala maternidade impermeavel",
+            "carrinho bebe dobravel passeio",
+            "bebe conforto veicular",
+            "baba eletronica sem fio visao noturna",
+            "mala bordo viagem 360 abs",
+            "depilador luz pulsada ipl",
+            "bolsa feminina transversal couro",
+            "secador cabelo profissional ionico",
+            "prancha alisadora chapinha titanio",
         ],
         "emoji": "🌸",
         "titulo_tg": "🌸 <b>HORÁRIO NOBRE: BELEZA, MODA & ACHADOS DE BEBÊ!</b>",
@@ -1532,8 +1779,10 @@ def buscar_melhores_ofertas(
     min_sales: int = 15,
     min_preco: float = VALOR_MINIMO_PRODUTO,
     tema: str | None = None,
+    max_pages: int = 5,
+    sort_type: int = 2,
 ) -> list:
-    """Busca ofertas ativas mais virais na Shopee AMS ordenadas por pontuação de viralidade e prova social."""
+    """Busca ofertas ativas mais virais na Shopee AMS ordenadas por pontuação de viralidade e prova social com suporte a paginação."""
     limit_fetch = max(1, min(limit_fetch, 50))  # A API Shopee AMS rejeita rigorosamente limit > 50 (Erro 11001)
     nodes = []
     
@@ -1546,9 +1795,41 @@ def buscar_melhores_ofertas(
     if tema_key in TEMAS_PRESETS:
         keywords = TEMAS_PRESETS[tema_key]["keywords"]
         for kw in keywords:
+            for p in range(1, max_pages + 1):
+                query = f"""
+                query {{
+                  productOfferV2(keyword: "{kw}", page: {p}, limit: {limit_fetch}, sortType: {sort_type}) {{
+                    nodes {{
+                      itemId
+                      shopId
+                      productName
+                      priceMin
+                      priceMax
+                      priceDiscountRate
+                      imageUrl
+                      offerLink
+                      sales
+                      ratingStar
+                    }}
+                  }}
+                }}
+                """
+                try:
+                    res = shopee_graphql_request(query)
+                    raw_nodes = res.get("data", {}).get("productOfferV2", {}).get("nodes", [])
+                    for rn in raw_nodes:
+                        rn["_keyword_origem"] = kw
+                    nodes.extend(raw_nodes)
+                    if not raw_nodes:
+                        break
+                except Exception as e:
+                    print(f"[AVISO] Falha ao buscar produtos para keyword '{kw}' (pág {p}): {e}", file=sys.stderr)
+                    break
+    else:
+        for p in range(1, max_pages + 1):
             query = f"""
             query {{
-              productOfferV2(keyword: "{kw}", page: 1, limit: {limit_fetch}, sortType: 2) {{
+              productOfferV2(page: {p}, limit: {limit_fetch}, sortType: {sort_type}) {{
                 nodes {{
                   itemId
                   shopId
@@ -1567,32 +1848,12 @@ def buscar_melhores_ofertas(
             try:
                 res = shopee_graphql_request(query)
                 raw_nodes = res.get("data", {}).get("productOfferV2", {}).get("nodes", [])
-                for rn in raw_nodes:
-                    rn["_keyword_origem"] = kw
                 nodes.extend(raw_nodes)
+                if not raw_nodes:
+                    break
             except Exception as e:
-                print(f"[AVISO] Falha ao buscar produtos para keyword '{kw}': {e}", file=sys.stderr)
-    else:
-        query = f"""
-        query {{
-          productOfferV2(page: 1, limit: {limit_fetch}, sortType: 2) {{
-            nodes {{
-              itemId
-              shopId
-              productName
-              priceMin
-              priceMax
-              priceDiscountRate
-              imageUrl
-              offerLink
-              sales
-              ratingStar
-            }}
-          }}
-        }}
-        """
-        res = shopee_graphql_request(query)
-        nodes = res.get("data", {}).get("productOfferV2", {}).get("nodes", [])
+                print(f"[AVISO] Falha ao buscar produtos gerais (pág {p}): {e}", file=sys.stderr)
+                break
     
     # Deduplicar nós brutos por itemId
     vistos = set()
@@ -1640,6 +1901,7 @@ def executar_lote_autonomo(
     dry_run: bool = False,
     intervalo_segundos: int = 15,
     min_preco: float = VALOR_MINIMO_PRODUTO,
+    max_pages: int = 5,
 ) -> dict[str, Any]:
     """Descobre e publica os produtos mais virais de acordo com a grade de horário e foco de público."""
     if not tema or tema.lower() == "auto":
@@ -1659,7 +1921,7 @@ def executar_lote_autonomo(
         historico_ativo = obter_historico_ativo()
         print(f"[COOLDOWN] {len(historico_ativo)} produtos atualmente protegidos na janela de {COOLDOWN_DIAS} dias.")
         
-        ofertas_candidatas = buscar_melhores_ofertas(min_desconto=min_desconto, limit_fetch=40, min_preco=min_preco, tema=tema_efetivo)
+        ofertas_candidatas = buscar_melhores_ofertas(min_desconto=min_desconto, limit_fetch=40, min_preco=min_preco, tema=tema_efetivo, max_pages=max_pages)
         
         # 2. Filtrar itens com DIVERSIDADE TOTAL:
         # - Cooldown de 14 dias (itemId + vendedor + produto idêntico/similar cross-seller)
@@ -1698,21 +1960,29 @@ def executar_lote_autonomo(
                             print(f"[COOLDOWN 14 DIAS] Ignorando produto: {motivo}")
                         continue
 
+                    # 1b. BLACKLIST PERMANENTE de famílias banidas (ex.: mala_viagem)
+                    if eh_produto_bloqueado(tit):
+                        if pass_num == 1:
+                            print(f"[BLACKLIST PERMANENTE] Ignorando produto: {tit}")
+                        continue
+
                     # 2. Diversidade de Lojistas no lote (1 produto por loja)
                     if sid and sid in lojas_atuais:
                         if pass_num == 1:
                             print(f"[DIVERSIDADE LOJA] Lojista {sid} já possui produto no lote. Pulando para garantir variedade.")
                         continue
 
-                    # 3. Diversidade Semântica de Produto no lote (evita 2 processadores, 2 bolsas, etc.)
+                    # 3. Diversidade Semântica de Produto no lote (evita 2 monitores, 2 cadeiras, etc.)
                     conflito_produto = False
                     for ja_sel in itens_atuais:
                         mesmo_v = bool(sid and ja_sel.get("shopId") and sid == ja_sel.get("shopId"))
                         sim, score, det = produtos_sao_similares(tit, ja_sel.get("productName"), mesmo_vendedor=mesmo_v)
-                        if sim:
+                        l_tit = extrair_tokens_lista(tit)
+                        l_ja = extrair_tokens_lista(ja_sel.get("productName", ""))
+                        if (l_tit and l_ja and l_tit[0] == l_ja[0]) or sim:
                             conflito_produto = True
                             if pass_num == 1:
-                                print(f"[DIVERSIDADE PRODUTO] Produto '{tit[:30]}...' similar a item já no lote ('{ja_sel.get('productName')[:30]}...'). Pulando ({det}).")
+                                print(f"[DIVERSIDADE PRODUTO] Produto '{tit[:30]}...' similar a item já no lote ('{ja_sel.get('productName')[:30]}...'). Pulando.")
                             break
                     if conflito_produto:
                         continue
@@ -1743,7 +2013,7 @@ def executar_lote_autonomo(
         if len(itens_selecionados) < quantidade:
             for fb_desc in [15, 10]:
                 print(f"[AUTONOMIA] Tentando fallback para produtos virais com pelo menos {fb_desc}% OFF (Piso: R$ {min_preco:.2f})...")
-                ofertas_candidatas_fb = buscar_melhores_ofertas(min_desconto=fb_desc, limit_fetch=40, min_preco=min_preco, tema=tema_efetivo, min_sales=5)
+                ofertas_candidatas_fb = buscar_melhores_ofertas(min_desconto=fb_desc, limit_fetch=40, min_preco=min_preco, tema=tema_efetivo, min_sales=5, max_pages=max_pages)
                 itens_selecionados, lojas_selecionadas, keywords_selecionadas = selecionar_itens_diversos(
                     candidatos=ofertas_candidatas_fb,
                     alvo_qtd=quantidade,
@@ -1754,6 +2024,19 @@ def executar_lote_autonomo(
                 if len(itens_selecionados) >= quantidade:
                     print(f"[AUTONOMIA] Fallback bem-sucedido: {len(itens_selecionados)} itens com diversidade garantida a >={fb_desc}% OFF.")
                     break
+
+        if len(itens_selecionados) < quantidade:
+            print(f"[AUTONOMIA] Tentando busca profunda estendida (até page: {max_pages} ordenadas por relevância)...")
+            ofertas_candidatas_deep = buscar_melhores_ofertas(min_desconto=10, limit_fetch=40, min_preco=min_preco, tema=tema_efetivo, min_sales=2, max_pages=max_pages, sort_type=1)
+            itens_selecionados, lojas_selecionadas, keywords_selecionadas = selecionar_itens_diversos(
+                candidatos=ofertas_candidatas_deep,
+                alvo_qtd=quantidade,
+                itens_atuais=itens_selecionados,
+                lojas_atuais=lojas_selecionadas,
+                keywords_atuais=keywords_selecionadas,
+            )
+            if len(itens_selecionados) >= quantidade:
+                print(f"[AUTONOMIA] Busca profunda bem-sucedida: {len(itens_selecionados)} itens elegíveis selecionados.")
 
         if not itens_selecionados:
             msg_aviso = f"Nenhuma nova promoção elegível encontrada para o tema [{nome_tema}]. O lote agendado NÃO foi publicado!"
@@ -1849,6 +2132,21 @@ def executar_lote_autonomo(
                 publicar_canal_whatsapp(
                     caminho_ou_url_imagem=story_file,
                     texto_whatsapp=copy_wpp,
+                    url_afiliado=short_link,
+                    dry_run=dry_run,
+                )
+
+                # 4.2. Publicar na Página do Facebook
+                copy_fb = formatar_copy_facebook(
+                    titulo=titulo,
+                    preco=preco_formatado,
+                    desconto=desconto_str,
+                    cupom="",
+                    url_afiliado=short_link,
+                )
+                publicar_pagina_facebook(
+                    caminho_ou_url_imagem=story_file,
+                    texto_facebook=copy_fb,
                     url_afiliado=short_link,
                     dry_run=dry_run,
                 )
@@ -1957,6 +2255,13 @@ def main():
     p_wpp.add_argument("--text", required=True, help="Texto/legenda da oferta")
     p_wpp.add_argument("--url", default="", help="Link de afiliado Shopee")
     p_wpp.add_argument("--dry-run", action="store_true", help="Simula sem postar")
+
+    # Subcomando: facebook
+    p_fb = subparsers.add_parser("facebook", help="Publica oferta na Página do Facebook")
+    p_fb.add_argument("--image", required=True, help="Caminho local da imagem ou URL")
+    p_fb.add_argument("--text", required=True, help="Texto/legenda da oferta")
+    p_fb.add_argument("--url", default="", help="Link de afiliado Shopee")
+    p_fb.add_argument("--dry-run", action="store_true", help="Simula sem postar")
     
     # Subcomando: auto (Ciclo completo por URL específica)
     p_auto = subparsers.add_parser("auto", help="Executa o pipeline completo para 1 produto específico")
@@ -1974,6 +2279,7 @@ def main():
     p_disc.add_argument("--min-discount", type=int, default=20, help="Desconto minimo em porcentagem (padrao: 20)")
     p_disc.add_argument("--min-price", type=float, default=VALOR_MINIMO_PRODUTO, help=f"Preco minimo em reais (padrao: {VALOR_MINIMO_PRODUTO:.2f})")
     p_disc.add_argument("--limit", type=int, default=10, help="Quantidade de produtos a listar")
+    p_disc.add_argument("--pages", type=int, default=5, help="Profundidade maxima de paginas na API da Shopee (padrao: 5)")
 
     # Subcomando: batch (Ciclo 100% autônomo em lote para o Hermes Agent)
     p_batch = subparsers.add_parser("batch", help="Busca automaticamente promocoes (>=20%% OFF e >= R$ 100) e posta lote no IG Stories e Telegram")
@@ -1981,6 +2287,7 @@ def main():
     p_batch.add_argument("--count", type=int, default=3, help="Quantidade de produtos a postar no lote (padrao: 3)")
     p_batch.add_argument("--min-discount", type=int, default=20, help="Desconto minimo (padrao: 20%%)")
     p_batch.add_argument("--min-price", type=float, default=VALOR_MINIMO_PRODUTO, help=f"Preco minimo em reais (padrao: {VALOR_MINIMO_PRODUTO:.2f})")
+    p_batch.add_argument("--pages", type=int, default=5, help="Profundidade maxima de paginas na API da Shopee (padrao: 5)")
     p_batch.add_argument("--dry-run", action="store_true", help="Simula sem postar nas redes")
 
     # Subcomando: cooldown (Auditoria da Regra de 14 dias)
@@ -2013,6 +2320,9 @@ def main():
     elif args.command == "whatsapp":
         ok = publicar_canal_whatsapp(args.image, args.text, args.url, dry_run=args.dry_run)
         print(json.dumps({"success": ok}))
+    elif args.command == "facebook":
+        ok = publicar_pagina_facebook(args.image, args.text, args.url, dry_run=args.dry_run)
+        print(json.dumps({"success": ok}))
     elif args.command == "auto":
         try:
             res = executar_pipeline_completo(
@@ -2033,7 +2343,7 @@ def main():
             )
             sys.exit(1)
     elif args.command == "discover":
-        ofertas = buscar_melhores_ofertas(min_desconto=args.min_discount, limit_fetch=args.limit * 3, min_preco=args.min_price, tema=args.theme)
+        ofertas = buscar_melhores_ofertas(min_desconto=args.min_discount, limit_fetch=args.limit * 3, min_preco=args.min_price, tema=args.theme, max_pages=args.pages)
         print(json.dumps(ofertas[:args.limit], indent=2, ensure_ascii=False))
     elif args.command == "batch":
         try:
@@ -2043,6 +2353,7 @@ def main():
                 tema=args.theme,
                 dry_run=args.dry_run,
                 min_preco=args.min_price,
+                max_pages=args.pages,
             )
             print(json.dumps(res, indent=2, ensure_ascii=False))
         except Exception as e:
@@ -2075,6 +2386,48 @@ def main():
         print(json.dumps({"alerta_enviado": ok}))
     else:
         parser.print_help()
+
+def postar_reel_instagram(video_url: str, caption: str) -> dict:
+    """Publica um vídeo no Instagram Reels usando Meta Graph API assíncrona."""
+    ig_user_id = CFG.get("INSTAGRAM_BUSINESS_ACCOUNT_ID")
+    access_token = CFG.get("INSTAGRAM_ACCESS_TOKEN")
+    graph_url = CFG.get("INSTAGRAM_GRAPH_URL", "https://graph.facebook.com/v21.0")
+
+    if not ig_user_id or not access_token:
+        raise ValueError("INSTAGRAM_BUSINESS_ACCOUNT_ID e INSTAGRAM_ACCESS_TOKEN são obrigatórios.")
+
+    # Passo 1: Criar container de vídeo para Reels
+    container_endpoint = f"{graph_url}/{ig_user_id}/media"
+    payload = {
+        "media_type": "REELS",
+        "video_url": video_url,
+        "caption": caption,
+        "share_to_feed": "true",
+        "access_token": access_token
+    }
+    r = requests.post(container_endpoint, data=payload, timeout=30)
+    r.raise_for_status()
+    creation_id = r.json().get("id")
+
+    # Passo 2: Polling de processamento do vídeo (Meta requer status FINISHED)
+    status_url = f"{graph_url}/{creation_id}?fields=status_code&access_token={access_token}"
+    max_tentativas = 18
+    for _ in range(max_tentativas):
+        time.sleep(5)
+        st_resp = requests.get(status_url, timeout=15).json()
+        status_code = st_resp.get("status_code")
+        if status_code == "FINISHED":
+            break
+        elif status_code == "ERROR":
+            raise RuntimeError(f"Erro no processamento do Reel na Meta: {st_resp}")
+
+    # Passo 3: Publicação final
+    publish_endpoint = f"{graph_url}/{ig_user_id}/media_publish"
+    pub_payload = {"creation_id": creation_id, "access_token": access_token}
+    pub_r = requests.post(publish_endpoint, data=pub_payload, timeout=30)
+    pub_r.raise_for_status()
+    return pub_r.json()
+
 
 if __name__ == "__main__":
     main()

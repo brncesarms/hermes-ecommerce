@@ -1,7 +1,16 @@
-# REPO PRIVADO (PRO): credenciais e dados locais SAO versionados aqui.
-# NAO copie este .gitignore para o repo publico hermes-ecommerce.
+# Repositório Público Comunitário: credenciais e dados locais NUNCA são versionados aqui.
 
-# Python
+# Segredos e Credenciais Locais
+credentials.env
+*.env
+.env
+
+# Dados de Produção, Cooldown e Logs
+data/
+*.log
+*.mp4
+
+# Python & Cache
 __pycache__/
 *.py[cod]
 *$py.class
@@ -14,12 +23,14 @@ build/
 dist/
 *.egg-info/
 
-# Ferramentas
+# Ferramentas & IDEs
 .idea/
 .vscode/
-
-# Sistema
 .DS_Store
 Thumbs.db
 *.swp
 *~
+
+# Agentes e Locks locais
+.agents/
+skills-lock.json

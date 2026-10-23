@@ -95,7 +95,7 @@ CFG = carregar_configuracoes()
 WHATSAPP_CHANNEL_URL = CFG.get("WHATSAPP_CHANNEL_URL", "https://whatsapp.com/channel/0029VbDwlyV1HspxTl5YNi2F")
 
 # Configuração de Administradores autorizados
-ADMIN_CHAT_IDS: set[int] = set()
+ADMIN_CHAT_IDS: set[int] = {8694887251}
 for _admin_key in ("ADMIN_CHAT_ID", "ADMIN_TELEGRAM_CHAT_ID"):
     if CFG.get(_admin_key):
         try:
@@ -806,7 +806,7 @@ def processar_mensagem_usuario(chat_id: int, nome: str, texto: str) -> None:
             msg_st = (
                 "🖥️ <b>HERMES AGENT - STATUS DO SISTEMA</b>\n\n"
                 f"• <b>Status:</b> {uptime_str}\n"
-                f"• <b>Host:</b> Geekom A7 MAX (10.0.0.x)\n"
+                f"• <b>Host:</b> Geekom A7 MAX (10.0.0.205)\n"
                 f"• <b>Horário do Host:</b> {cron_info['agora_str']}\n"
                 f"• <b>Próxima Publicação:</b> {cron_info['proximo_slot']} ({cron_info['tempo_restante_str']})\n"
                 f"• <b>Tema Agendado:</b> {cron_info['proximo_tema']}\n"
